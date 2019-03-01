@@ -10,6 +10,9 @@ import csv
 import os
 import glob
 
+from common import Sudoku
+
+
 #sudoku solver using plain backtracking
 rMaxLen = cMaxLen = 9         # row and col max length
 guesses = 0
@@ -150,10 +153,13 @@ def sudoSolverMRVBacktracking(sudoMat):
    
     global guesses 
 
-    row = pos[0]
-    col = pos[1]
+
     
-    legalValLst = getLegValOneCell(sudoMat, row, col)
+    emptyCellLst = findEmptyPosLegalVal(sudoMat)    # MRV
+     
+    legalValLst = emptyCellLst[0][1]
+    row = emptyCellLst[0][0][0]
+    col = emptyCellLst[0][0][1]
     
     for val in legalValLst:
         guesses += 1
@@ -168,6 +174,57 @@ def sudoSolverMRVBacktracking(sudoMat):
             
     return False
 
+
+
+
+def AC3(sudoku):
+
+    que = list(sudoku.constraints)
+
+    while que:
+
+        xi, xj = que.pop(0)
+        
+        if revise(sudoku, xi, xj):
+
+            global guesses
+            guesses += 1
+            if len(sudoku.domains[xi]) == 0:
+                return False
+            
+            for xk in sudoku.neighbors[xi]:
+                if xk != xi:
+                    que.append([xk, xi])
+
+    return True
+
+
+def revise(sudoku, xi, xj):
+
+    revised = False
+
+    for x in sudoku.domains[xi]:
+        if not any([sudoku.constraint(x, y) for y in sudoku.domains[xj]]):
+            sudoku.domains[xi].remove(x)
+            revised = True
+
+    return revised
+
+
+def executeAC3(sudoMat):
+    # execute AC-3
+    sudoku = Sudoku(sudoMat)
+
+    if AC3(sudoku):
+
+        if sudoku.solved():
+
+            #write into sudoMat
+            for var in sudoku.variables:
+                sudoMat[int(var[0])][int(var[1])] = sudoku.domains[var][0]
+
+
+            
 def executeSudoSolver(method):
     # output file is in the  output folder
        
@@ -179,10 +236,11 @@ def executeSudoSolver(method):
          
         if method == "plainBT":
             sudoSolverBacktracking(sudoMat)
-
         elif method == "MRVBT":
             sudoSolverMRVBacktracking(sudoMat)
-
+        elif method == "AC-3":
+            executeAC3(sudoMat)
+            
         global guesses
         print ("solved sudoMat: ", sudoMat, guesses)
 
@@ -195,11 +253,18 @@ def executeSudoSolver(method):
         writeSudokuFile(sudoMat, fileOut) 
 
         guesses = 0
-        #break
 
 if __name__ == '__main__':
+    print ("begin to execute plain backtracking")
+
     method = "plainBT"          # plain backtracking    
-   # method = "MRVBT"          # backtracking with MRV
+    executeSudoSolver(method)
+
+    print ("begin to execute backtracking with MRV")
+    method = "MRVBT"          # backtracking with MRV
+    executeSudoSolver(method)
     
+    print ("begin to execute AC-3 ")
+    method = "AC-3"
     executeSudoSolver(method)
 
